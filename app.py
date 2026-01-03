@@ -2,10 +2,10 @@ import streamlit as st
 import urllib.parse
 
 # ==============================================================================
-# 1. CẤU HÌNH HỆ THỐNG (ĐÃ ĐIỀN SẴN THÔNG TIN CỦA SHOP ALEXAECHO)
+# 1. CẤU HÌNH HỆ THỐNG
 # ==============================================================================
 
-# Cấu hình trang web
+# Cấu hình trang web (Giao diện Mobile)
 st.set_page_config(
     page_title="Bác Sĩ Robot - AlexaEcho",
     page_icon="🤖",
@@ -13,11 +13,10 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# SHOP ID CỦA SẾP (Lấy từ ảnh Sếp gửi: 68690982)
+# SHOP ID CỦA SẾP (Đã điền chuẩn từ ảnh Sếp gửi)
 SHOP_ID = "68690982"
 
-# KHO LINK SẢN PHẨM CHIẾN LƯỢC (Đã điền sẵn gói bột tẩy cặn)
-# Cấu trúc link shopee ngắn gọn: shopee.vn/product/SHOP_ID/PRODUCT_ID
+# KHO LINK SẢN PHẨM CHIẾN LƯỢC
 vip_links = {
     # LINK BỘT TẨY CẶN (Sản phẩm 18k Sếp muốn đẩy mạnh)
     "bot_canxi": f"https://shopee.vn/product/{SHOP_ID}/42427536678",
@@ -27,11 +26,10 @@ vip_links = {
 }
 
 # ==============================================================================
-# 2. HÀM XỬ LÝ LINK THÔNG MINH (CHỐNG BỊ SHOPEE CHẶN)
+# 2. HÀM XỬ LÝ LINK THÔNG MINH
 # ==============================================================================
 def get_safe_link(part_key, model_name, default_keyword):
     # 1. Kiểm tra xem có Link VIP (Sản phẩm chiến lược) không?
-    # Ví dụ: Nếu lỗi là "nuoc" -> part_key="bot_canxi" -> Lấy link gói bột 18k luôn
     if part_key in vip_links:
         return vip_links[part_key]
 
@@ -41,7 +39,6 @@ def get_safe_link(part_key, model_name, default_keyword):
         keyword = f"{default_keyword} {model_name}"
     
     base_url = "https://shopee.vn/search"
-    # Dùng tham số 'shop' để tìm kiếm chính xác trong gian hàng của Sếp
     params = {'keyword': keyword, 'shop': SHOP_ID}
     return f"{base_url}?{urllib.parse.urlencode(params)}"
 
@@ -53,7 +50,7 @@ db_issues = [
         "keys": ["nước", "bơm", "khô", "lau", "két nước", "tắc", "không ra nước"],
         "name": "Lỗi Tắc Hệ Thống Nước (Lau khô)",
         "fix": "90% là do cặn canxi làm tắc vòi bơm. Đừng vội thay bơm, hãy dùng Bột thông tắc chuyên dụng trước.",
-        "part_key": "bot_canxi", # Cái này sẽ kích hoạt link gói bột 18k
+        "part_key": "bot_canxi", # Kích hoạt link gói bột 18k
         "keyword": "bột tẩy cặn canxi robot" 
     },
     {
@@ -110,6 +107,8 @@ st.markdown("""
         border-left: 5px solid #ee4d2d; margin-bottom: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.05);
     }
     .solution-text { color: #2e7d32; font-weight: bold; }
+    /* Nút bấm Submit */
+    .stButton button { width: 100%; font-weight: bold; border-radius: 8px; }
     #MainMenu {visibility: hidden;} footer {visibility: hidden;} header {visibility: hidden;}
 </style>
 """, unsafe_allow_html=True)
@@ -118,16 +117,16 @@ st.markdown("""
 st.markdown("""
 <div class="header-container">
     <h2>🤖 BÁC SĨ ROBOT</h2>
-    <small>Chẩn đoán lỗi & Cấp linh kiện Chất lượng</small>
+    <small>Chẩn đoán lỗi & Cấp linh kiện Chính hãng</small>
 </div>
 """, unsafe_allow_html=True)
 
-# Input 1: Chọn Model
+# --- BƯỚC 1: Chọn Model ---
 st.info("💡 **BƯỚC 1:** Chọn đời máy để lấy linh kiện chuẩn nhất!")
 model_options = ["Chưa rõ", "Deebot T5 / DX96", "Deebot T8 AIVI / Max", "Deebot T9", "Deebot X1 Omni / Turbo", "Dreame L10 / W10", "Roborock S7 / S8"]
 user_model_select = st.selectbox("Đời máy:", model_options, label_visibility="collapsed")
 
-# Xử lý tên model để đưa vào từ khóa tìm kiếm
+# Xử lý tên model
 user_model_clean = ""
 if "T5" in user_model_select: user_model_clean = "t5"
 elif "T8" in user_model_select: user_model_clean = "t8"
@@ -138,43 +137,65 @@ elif "Roborock" in user_model_select: user_model_clean = "roborock"
 
 st.divider()
 
-# Input 2: Nhập bệnh
+# --- BƯỚC 2: Nhập bệnh (CÓ NÚT BẤM) ---
 st.write("##### 🔍 BƯỚC 2: Robot bị sao? (Nhập mã lỗi hoặc hiện tượng)")
-query = st.text_input("", placeholder="VD: không ra nước, lỗi 1, kêu to...", label_visibility="collapsed")
 
-if query:
-    found = False
-    st.write("---")
-    for item in db_issues:
-        if any(k in query.lower() for k in item["keys"]):
-            found = True
-            
-            # Lấy link an toàn (Ưu tiên Gói bột nếu là lỗi nước)
-            safe_link = get_safe_link(item['part_key'], user_model_clean, item['keyword'])
-            
-            st.markdown(f"""
-            <div class="error-card">
-                <b>🚨 {item['name']}</b><br>
-                <p>Nguyên nhân: <span class="solution-text">{item['fix']}</span></p>
-            </div>
-            """, unsafe_allow_html=True)
-            
-            # Tùy chỉnh chữ trên nút bấm
-            if item['part_key'] == "bot_canxi":
-                btn_text = "🛒 MUA GÓI BỘT THÔNG TẮC (18K)"
-            else:
-                btn_text = "🛒 MUA LINH KIỆN KHẮC PHỤC NGAY"
-                if user_model_clean:
-                    btn_text += f" (CHO {user_model_clean.upper()})"
+# Tạo Form để có nút bấm Submit
+with st.form(key='search_form'):
+    query_input = st.text_input(
+        label="Nhập lỗi", 
+        placeholder="VD: không ra nước, lỗi 1, kêu to...", 
+        label_visibility="collapsed"
+    )
+    # Nút bấm hành động
+    submit_button = st.form_submit_button(label='🔍 BẮT BỆNH NGAY', type="primary", use_container_width=True)
+
+# Logic xử lý khi bấm nút
+if submit_button:
+    if not query_input:
+        st.warning("⚠️ Bác chưa nhập mô tả lỗi kìa!")
+    else:
+        found = False
+        st.write("---")
+        for item in db_issues:
+            if any(k in query_input.lower() for k in item["keys"]):
+                found = True
                 
-            st.link_button(btn_text, safe_link, type="primary", use_container_width=True)
-            st.write("") 
+                # Lấy link an toàn
+                safe_link = get_safe_link(item['part_key'], user_model_clean, item['keyword'])
+                
+                st.markdown(f"""
+                <div class="error-card">
+                    <b>🚨 {item['name']}</b><br>
+                    <p>Nguyên nhân: <span class="solution-text">{item['fix']}</span></p>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                # Nút mua hàng
+                if item['part_key'] == "bot_canxi":
+                    btn_text = "🛒 MUA GÓI BỘT THÔNG TẮC (18K)"
+                else:
+                    btn_text = "🛒 MUA LINH KIỆN KHẮC PHỤC NGAY"
+                    if user_model_clean:
+                        btn_text += f" (CHO {user_model_clean.upper()})"
+                
+                st.link_button(btn_text, safe_link, type="primary", use_container_width=True)
+                st.write("") 
 
-    if not found:
-        st.warning("⚠️ Chưa rõ bệnh. Hãy Chat với Sếp để được bắt mạch!")
-        st.link_button("🏠 VÀO GIAN HÀNG TỰ TÌM", vip_links["home"], use_container_width=True)
+        if not found:
+            st.warning("⚠️ Chưa rõ bệnh. Hãy Chat với Sếp để được bắt mạch!")
+            st.link_button("🏠 VÀO GIAN HÀNG TỰ TÌM", vip_links["home"], use_container_width=True)
 
+# --- FOOTER (LIÊN HỆ) ---
 st.divider()
+st.markdown("#### 📞 Hỗ trợ khẩn cấp")
 c1, c2 = st.columns(2)
-with c1: st.link_button("💬 Zalo Hỗ Trợ ", "https://zalo.me/0347653354", use_container_width=True) # Sếp nhớ thay số Zalo
-with c2: st.link_button("☎️ Hotline", "tel:0347653354", type="secondary", use_container_width=True) # Sếp nhớ thay số Hotline
+
+# SẾP LƯU Ý: THAY SỐ ĐIỆN THOẠI THẬT VÀO 2 DÒNG DƯỚI ĐÂY NHÉ
+with c1: 
+    st.link_button("💬 Zalo Sếp", "https://zalo.me/0347653354", use_container_width=True) 
+with c2: 
+    st.link_button("☎️ Hotline", "tel:0347653354", type="secondary", use_container_width=True)
+
+st.write("")
+st.markdown("<div style='text-align: center; color: #888; font-size: 12px;'>© 2026 Bệnh Viện Robot - AlexaEcho Official Store</div>", unsafe_allow_html=True)
