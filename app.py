@@ -10,7 +10,7 @@ from oauth2client.service_account import ServiceAccountCredentials
 
 st.set_page_config(page_title="Bác Sĩ Robot - MIT Technology", page_icon="🤖", layout="centered", initial_sidebar_state="collapsed")
 
-PHONE_NUMBER = "0347653354" # Sếp nhớ thay số thật
+PHONE_NUMBER = "0347653354" # 👉 Sếp nhớ thay số điện thoại thật vào đây
 SHOP_ID = "68690982"
 
 vip_links = {
@@ -22,9 +22,7 @@ vip_links = {
 @st.cache_resource
 def get_google_sheet():
     try:
-        # Lấy thông tin mật từ Streamlit Secrets
         scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
-        # Tạo credentials từ thông tin trong Secrets
         creds = ServiceAccountCredentials.from_json_keyfile_dict(st.secrets["gcp_service_account"], scope)
         client = gspread.authorize(creds)
         # Mở file Google Sheet theo tên
@@ -34,7 +32,7 @@ def get_google_sheet():
         return None
 
 # ==============================================================================
-# 2. LOGIC GHI DỮ LIỆU (LOGGING)
+# 2. LOGIC GHI DỮ LIỆU (ĐÃ SỬA LỖI SYNTAX & NGÀY THÁNG)
 # ==============================================================================
 
 def log_to_sheet(model, error_query, action_type):
@@ -43,11 +41,14 @@ def log_to_sheet(model, error_query, action_type):
     if sheet:
         try:
             timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            # Thêm dòng mới vào cuối bảng
-            # Thêm tham số value_input_option='USER_ENTERED' để Google tự nhận diện ngày tháng
-sheet.append_row([timestamp, model, error_query, action_type], value_input_option='USER_ENTERED')
+            # 👉 QUAN TRỌNG: Dùng value_input_option='USER_ENTERED' để Google tự hiểu ngày tháng
+            sheet.append_row(
+                [timestamp, model, error_query, action_type], 
+                value_input_option='USER_ENTERED'
+            )
         except:
-            pass # Nếu lỗi mạng thì bỏ qua, không làm phiền khách
+            # Nếu lỗi mạng thì bỏ qua (Đây chính là phần 'except' bị thiếu lúc nãy)
+            pass 
 
 def get_safe_link(part_key, model_name, default_keyword):
     if part_key in vip_links: return vip_links[part_key]
@@ -55,19 +56,22 @@ def get_safe_link(part_key, model_name, default_keyword):
     return f"https://shopee.vn/search?keyword={keyword}&shop={SHOP_ID}"
 
 # ==============================================================================
-# 3. DỮ LIỆU & GIAO DIỆN
+# 3. DỮ LIỆU BỆNH HỌC
 # ==============================================================================
 db_issues = [
-    {"keys": ["nước", "bơm", "khô", "lau", "tắc"], "name": "Lỗi Tắc Nước", "fix": "90% do cặn canxi. Dùng bột thông tắc 18k.", "type": "easy", "part_key": "bot_canxi", "keyword": "bột tẩy cặn robot"},
-    {"keys": ["sạc", "pin", "nguồn", "dock"], "name": "Lỗi Pin / Nguồn", "fix": "Pin chai hoặc chân sạc bẩn. Tự thay pin dễ dàng.", "type": "easy", "part_key": "pin", "keyword": "pin robot hút bụi"},
+    {"keys": ["nước", "bơm", "khô", "lau", "tắc", "không ra nước"], "name": "Lỗi Tắc Nước", "fix": "90% do cặn canxi. Dùng bột thông tắc 18k.", "type": "easy", "part_key": "bot_canxi", "keyword": "bột tẩy cặn robot"},
+    {"keys": ["sạc", "pin", "nguồn", "tắt máy", "dock"], "name": "Lỗi Pin / Nguồn", "fix": "Pin chai hoặc chân sạc bẩn. Tự thay pin dễ dàng.", "type": "easy", "part_key": "pin", "keyword": "pin robot hút bụi"},
     {"keys": ["bánh xe", "kẹt", "lốp"], "name": "Lỗi Bánh Xe", "fix": "Mòn lốp cao su. Dán lốp mới là xong.", "type": "easy", "part_key": "banhxe", "keyword": "lốp bánh xe robot"},
     {"keys": ["lọc", "bụi", "hút yếu"], "name": "Lỗi Màng Lọc", "fix": "Màng lọc bẩn. Cần thay mới.", "type": "easy", "part_key": "hepa", "keyword": "lọc hepa"},
-    {"keys": ["kêu", "ồn", "hộp số"], "name": "Lỗi Hộp Số (Nghiêm trọng)", "fix": "Vỡ bánh răng. Cần tháo máy gửi sửa.", "type": "hard", "part_key": "zalo_repair", "keyword": ""},
+    {"keys": ["kêu", "ồn", "hộp số", "cạch"], "name": "Lỗi Hộp Số (Nghiêm trọng)", "fix": "Vỡ bánh răng. Cần tháo máy gửi sửa.", "type": "hard", "part_key": "zalo_repair", "keyword": ""},
     {"keys": ["lds", "laser", "lỗi 1"], "name": "Lỗi LDS (Laser)", "fix": "Hỏng mắt Laser. Cần gửi shop kiểm tra.", "type": "hard", "part_key": "zalo_repair", "keyword": ""},
     {"keys": ["quạt", "hút"], "name": "Lỗi Quạt Hút", "fix": "Chết quạt hút. Cần thợ xử lý.", "type": "hard", "part_key": "zalo_repair", "keyword": ""}
 ]
 
-# CSS & Header
+# ==============================================================================
+# 4. GIAO DIỆN (FRONTEND)
+# ==============================================================================
+# CSS
 st.markdown("""<style>.stApp {background-color:#f8f9fa;} .header-container {background: linear-gradient(135deg, #0d47a1 0%, #1976d2 100%); padding:20px; border-radius:0 0 20px 20px; color:white; text-align:center; margin-top:-50px;} .error-card {background-color:white; padding:15px; border-radius:10px; border-left:5px solid #0d47a1; margin-bottom:10px;box-shadow:0 2px 5px rgba(0,0,0,0.05);} .stButton button {width:100%; border-radius:8px; font-weight:bold;} #MainMenu {visibility:hidden;} footer {visibility:hidden;} header {visibility:hidden;}</style>""", unsafe_allow_html=True)
 st.markdown("""<div class="header-container"><h2>🤖 BÁC SĨ ROBOT</h2><p>TRỰC THUỘC THƯƠNG MẠI VÀ CÔNG NGHỆ MIT</p></div>""", unsafe_allow_html=True)
 
@@ -78,6 +82,7 @@ user_model = st.selectbox("Đời máy:", model_options, label_visibility="colla
 model_clean = ""
 if "T5" in user_model: model_clean = "t5"
 elif "T8" in user_model: model_clean = "t8"
+elif "T9" in user_model: model_clean = "t9"
 elif "X1" in user_model: model_clean = "x1"
 
 st.divider()
@@ -127,4 +132,3 @@ with c1: st.link_button("💬 Zalo Sếp", f"https://zalo.me/{PHONE_NUMBER}", us
 with c2: st.link_button("☎️ Hotline", f"tel:{PHONE_NUMBER}", type="secondary", use_container_width=True)
 st.write("")
 st.markdown("<div style='text-align: center; color: #888; font-size: 12px;'>© 2026 Thương Mại và Công Nghệ MIT</div>", unsafe_allow_html=True)
-
