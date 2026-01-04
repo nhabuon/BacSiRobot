@@ -6,7 +6,7 @@ import urllib.parse
 # ==============================================================================
 
 # 👉 SỐ ĐIỆN THOẠI CỦA SẾP (Quan trọng: Sửa số này để khách Chat Zalo/Gọi điện)
-PHONE_NUMBER = "0987654321"  # <--- Sếp thay số thật vào đây nhé!
+PHONE_NUMBER = "0347653354"  # <--- Sếp thay số thật vào đây nhé!
 
 # Shop ID Shopee (Đã chuẩn)
 SHOP_ID = "68690982"
@@ -209,9 +209,10 @@ st.divider()
 st.markdown("#### 📞 Liên hệ trực tiếp")
 c1, c2 = st.columns(2)
 with c1: 
-    st.link_button("💬 Zalo Sếp", f"https://zalo.me/{PHONE_NUMBER}", use_container_width=True) 
+    st.link_button("💬 Zalo Hỗ Trợ", f"https://zalo.me/{PHONE_NUMBER}", use_container_width=True) 
 with c2: 
     st.link_button("☎️ Hotline", f"tel:{PHONE_NUMBER}", type="secondary", use_container_width=True)
 
 st.write("")
 st.markdown("<div style='text-align: center; color: #888; font-size: 12px;'>© 2026 Thương Mại và Công Nghệ MIT</div>", unsafe_allow_html=True)
+
