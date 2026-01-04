@@ -44,7 +44,8 @@ def log_to_sheet(model, error_query, action_type):
         try:
             timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             # Thêm dòng mới vào cuối bảng
-            sheet.append_row([timestamp, model, error_query, action_type])
+            # Thêm tham số value_input_option='USER_ENTERED' để Google tự nhận diện ngày tháng
+sheet.append_row([timestamp, model, error_query, action_type], value_input_option='USER_ENTERED')
         except:
             pass # Nếu lỗi mạng thì bỏ qua, không làm phiền khách
 
@@ -126,3 +127,4 @@ with c1: st.link_button("💬 Zalo Sếp", f"https://zalo.me/{PHONE_NUMBER}", us
 with c2: st.link_button("☎️ Hotline", f"tel:{PHONE_NUMBER}", type="secondary", use_container_width=True)
 st.write("")
 st.markdown("<div style='text-align: center; color: #888; font-size: 12px;'>© 2026 Thương Mại và Công Nghệ MIT</div>", unsafe_allow_html=True)
+
