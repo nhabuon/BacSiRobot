@@ -122,13 +122,14 @@ if submitted:
                 st.write("")
 
         if not found:
-            st.warning("⚠️ Bệnh lạ quá. Chat với Sếp nhé!")
+            st.warning("⚠️ Bệnh lạ quá. Chat với Zalo Hỗ Trợ Kỹ Thuật nhé!")
             st.link_button("🏠 VÀO GIAN HÀNG", vip_links["home"], use_container_width=True)
             log_to_sheet(user_model, query, "Not Found")
 
 st.divider()
 c1, c2 = st.columns(2)
-with c1: st.link_button("💬 Zalo Sếp", f"https://zalo.me/{PHONE_NUMBER}", use_container_width=True)
+with c1: st.link_button("💬 Zalo Hỗ Trợ Kỹ Thuật", f"https://zalo.me/{PHONE_NUMBER}", use_container_width=True)
 with c2: st.link_button("☎️ Hotline", f"tel:{PHONE_NUMBER}", type="secondary", use_container_width=True)
 st.write("")
 st.markdown("<div style='text-align: center; color: #888; font-size: 12px;'>© 2026 Thương Mại và Công Nghệ MIT</div>", unsafe_allow_html=True)
+
