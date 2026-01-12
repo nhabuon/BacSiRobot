@@ -1,4 +1,15 @@
 import streamlit as st
+import time
+
+# ... (Các thư viện khác)
+
+# Mẹo giữ App luôn thức
+if "keep_alive" not in st.session_state:
+    st.session_state.keep_alive = True
+
+# Tự động chạy lại nhẹ nhàng để báo hiệu server đang hoạt động
+# (Sếp có thể ẩn cái này đi hoặc để nó chạy ngầm)
+import streamlit as st
 import urllib.parse
 import datetime
 import gspread
@@ -132,4 +143,5 @@ with c1: st.link_button("💬 Zalo Hỗ Trợ Kỹ Thuật", f"https://zalo.me/{
 with c2: st.link_button("☎️ Hotline", f"tel:{PHONE_NUMBER}", type="secondary", use_container_width=True)
 st.write("")
 st.markdown("<div style='text-align: center; color: #888; font-size: 12px;'>© 2026 Thương Mại và Công Nghệ MIT</div>", unsafe_allow_html=True)
+
 
