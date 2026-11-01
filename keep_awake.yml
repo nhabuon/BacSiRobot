@@ -1,0 +1,24 @@
+name: Giu app Streamlit luon thuc
+
+on:
+  schedule:
+    - cron: "17 */6 * * *"   # 6 tieng 1 lan (gio UTC), app ngu sau 12 tieng khong co nguoi
+  workflow_dispatch:          # cho phep bam chay tay tren GitHub
+
+jobs:
+  wake:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Cai Playwright
+        run: |
+          pip install playwright
+          python -m playwright install --with-deps chromium
+      - name: Danh thuc app
+        env:
+          STREAMLIT_APP_URL: https://bacsirobot.streamlit.app/
+        run: python keep_awake.py
