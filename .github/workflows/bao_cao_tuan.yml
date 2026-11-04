@@ -1,0 +1,24 @@
+name: Bao cao tuan - cau can bo sung benh hoc
+
+on:
+  schedule:
+    - cron: "23 1 * * 1"   # 8h23 sang thu Hai gio VN (01:23 UTC)
+  workflow_dispatch:        # cho phep bam chay tay tren GitHub
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Cai thu vien
+        run: python -m pip install "gspread>=6.0"
+      - name: Kiem logic truoc khi doc sheet
+        run: python test_bacsi.py
+      - name: Loc Not Found / Need Info 7 ngay va ghi trang Can_Bo_Sung
+        env:
+          GCP_SERVICE_ACCOUNT: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+        run: python bao_cao_tuan.py

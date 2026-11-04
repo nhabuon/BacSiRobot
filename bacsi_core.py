@@ -52,6 +52,22 @@ COL_B = {"id": "ID", "name": "Tên bệnh", "phrases": "Cách khách hay nói (n
 COL_M = {"brand": "Hãng", "line": "Dòng máy áp dụng", "code": "Mã", "msg": "Thông điệp gốc (tiếng Anh)",
          "meaning": "Ý nghĩa", "action": "Cách xử lý", "issue": "ID bệnh (khớp Benh_Hoc)"}
 
+# Trang log (trang dau tien cua sheet): moi lan bat benh = 1 dong.
+# A Thoi gian | B Doi may | C Cau khach go | D Hanh dong | E Ket qua | F Khach bao (nut "Dung benh chua?")
+LOG_COL = {"time": 0, "model": 1, "query": 2, "action": 3, "result": 4, "feedback": 5}
+FB_OK, FB_WRONG = "Đúng", "Chưa đúng"
+
+
+def log_row_number(append_response):
+    """So dong vua ghi, doc tu ket qua append_row cua gspread
+    ({'updates': {'updatedRange': "'Trang 1'!A12:E12"}}) -> 12. Khong doc duoc -> None."""
+    try:
+        rng = append_response["updates"]["updatedRange"]
+    except (KeyError, TypeError):
+        return None
+    m = re.search(r"![A-Z]+(\d+)", str(rng))
+    return int(m.group(1)) if m else None
+
 
 # ------------------------------------------------------------------------------
 # CHUAN HOA CHU
