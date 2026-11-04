@@ -3,7 +3,8 @@ import html
 
 import streamlit as st
 
-from bacsi_core import ASK_MORE, MODELS, VIP_LINKS, build_kb, builtin_kb, diagnose, shop_link
+from bacsi_core import (ASK_MORE, FB_OK, FB_WRONG, LOG_COL, MODELS, VIP_LINKS, build_kb, builtin_kb,
+                        diagnose, log_row_number, shop_link)
 
 # ==============================================================================
 # 1. CAU HINH
@@ -57,15 +58,33 @@ def get_kb():
 
 
 def log_to_sheet(model, query, result, action):
-    """Moi lan bat benh ghi DUNG 1 dong vao trang dau tien (giu cot cu: Time, Model, Error, Action)."""
+    """Moi lan bat benh ghi DUNG 1 dong vao trang dau tien (cot A-E, xem LOG_COL).
+    Tra ve so dong vua ghi de gan phan hoi cua khach vao dung dong; khong ghi duoc -> None."""
+    ss = get_spreadsheet()
+    if not ss:
+        return None
+    try:
+        ts = datetime.datetime.now(VN_TZ).strftime("%Y-%m-%d %H:%M:%S")
+        resp = ss.sheet1.append_row([ts, model, query, action, result], value_input_option="USER_ENTERED")
+        return log_row_number(resp)
+    except Exception as e:
+        print("[BacSiRobot] Ghi log loi:", e)
+        return None
+
+
+def save_feedback(row, verdict):
+    """Nut "Dung benh chua?": ghi vao cot F cua CHINH dong log lan bat benh do (khong them dong moi),
+    de bao cao tuan doc duoc ca cau khach go, ket qua app tra va khach bao dung/sai."""
+    if not row:
+        print("[BacSiRobot] Phan hoi khong gan duoc dong log:", verdict)
+        return
     ss = get_spreadsheet()
     if not ss:
         return
     try:
-        ts = datetime.datetime.now(VN_TZ).strftime("%Y-%m-%d %H:%M:%S")
-        ss.sheet1.append_row([ts, model, query, action, result], value_input_option="USER_ENTERED")
+        ss.sheet1.update_cell(row, LOG_COL["feedback"] + 1, verdict)
     except Exception as e:
-        print("[BacSiRobot] Ghi log loi:", e)
+        print("[BacSiRobot] Ghi phan hoi loi:", e)
 
 
 # ==============================================================================
@@ -73,6 +92,12 @@ def log_to_sheet(model, query, result, action):
 # ==============================================================================
 def esc(s):
     return html.escape(str(s or ""))
+
+
+def issue_action(item, model_kw):
+    if item["type"] == "hard":
+        return "Zalo Support"
+    return "Shopee Buy" if shop_link(item, model_kw) else "Self Fix"
 
 
 def show_issue(item, rank, model_kw):
@@ -93,17 +118,95 @@ def show_issue(item, rank, model_kw):
         unsafe_allow_html=True)
     if hard:
         st.link_button("💬 CHAT ZALO GỬI SỬA", ZALO_LINK, width="stretch")
-        return "Zalo Support"
+        return
     link = shop_link(item, model_kw)
     if link:
         text = "🛒 MUA GÓI BỘT (18K)" if link == VIP_LINKS["bot_canxi"] else \
             f"🛒 XEM {item['part'].split(';')[0].upper() or 'LINH KIỆN'}"
         st.link_button(text, link, type="primary", width="stretch")
-        return "Shopee Buy"
-    return "Self Fix"
 
 
-st.markdown("""<style>.stApp {background-color:#f8f9fa;} .header-container {background: linear-gradient(135deg, #0d47a1 0%, #1976d2 100%); padding:20px; border-radius:0 0 20px 20px; color:white; text-align:center; margin-top:-50px;} .error-card {background-color:white; padding:15px; border-radius:10px; border-left:5px solid #0d47a1; margin-bottom:10px;box-shadow:0 2px 5px rgba(0,0,0,0.05);} .error-card.hard {border-left-color:#d32f2f;} .error-card .steps {font-size:14px; line-height:1.55; margin-top:6px;} .code-card {background:#fff8e1; padding:10px 14px; border-radius:8px; margin-bottom:8px; font-size:14px;} .stButton button {width:100%; border-radius:8px; font-weight:bold;} #MainMenu {visibility:hidden;} footer {visibility:hidden;} header {visibility:hidden;}</style>""", unsafe_allow_html=True)
+def log_fields(res, model_kw):
+    """(Ket qua, Hanh dong) ghi vao log - giu dung cac nhan cu de bao cao tuan loc duoc."""
+    st_ = res["status"]
+    if st_ == "found":
+        names = [f"Mã {r['brand']} {r['code']}" for r in res["code_rows"]] + [it["name"] for it in res["issues"]]
+        actions = [issue_action(it, model_kw) for it in res["issues"]] or ["Zalo Support"]
+        return ", ".join(names), " | ".join(actions)
+    if st_ == "code_multi":
+        return f"Mã {res['code']} chưa rõ hãng", "Need Model"
+    if st_ == "code_unknown":
+        return f"Mã lỗi {res['code']}", "Code Unknown"
+    if st_ == "need_info":
+        return "", "Need Info"
+    return "", "Not Found"
+
+
+def _on_feedback(verdict):
+    last = st.session_state.get("last")
+    if not last or last["fb"]:
+        return  # moi lan bat benh chi nhan 1 phan hoi
+    last["fb"] = verdict
+    save_feedback(last["row"], verdict)
+
+
+def show_feedback(last):
+    """Nut nho duoi ket qua. Bam xong thi thay bang loi cam on, khong bat khach giai thich."""
+    if last["fb"] is None:
+        with st.container(horizontal=True, vertical_alignment="center", key="fb_box"):
+            st.markdown("<span class='fb-q'>Đúng bệnh chưa?</span>", unsafe_allow_html=True)
+            st.button("👍 Đúng", key=f"fb_ok_{last['n']}", on_click=_on_feedback, args=(FB_OK,))
+            st.button("👎 Chưa đúng", key=f"fb_no_{last['n']}", on_click=_on_feedback, args=(FB_WRONG,))
+    elif last["fb"] == FB_OK:
+        st.caption("✅ Cảm ơn bác đã xác nhận!")
+    else:
+        st.caption("🙏 Cảm ơn bác, em ghi lại để bổ sung bệnh này. Bác nhắn Zalo mô tả thêm, em hỗ trợ ngay.")
+        st.link_button("💬 NHẮN ZALO KỸ THUẬT", ZALO_LINK, width="stretch")
+
+
+def show_result(last):
+    res, model_kw = last["res"], last["model_kw"]
+    st.write("---")
+
+    if res["status"] == "found":
+        for r in res["code_rows"]:
+            st.markdown(
+                f"""<div class="code-card"><b>Mã lỗi {esc(r['code'])} ({esc(r['brand'])}):</b> """
+                f"""{esc(r['meaning'])}<br><b>Xử lý nhanh:</b> {esc(r['action'])}</div>""",
+                unsafe_allow_html=True)
+        for i, it in enumerate(res["issues"]):
+            show_issue(it, i, model_kw)
+        if not res["issues"]:
+            st.link_button("💬 HỎI KỸ THUẬT QUA ZALO", ZALO_LINK, width="stretch")
+        show_feedback(last)
+
+    elif res["status"] == "code_multi":
+        st.warning(f"⚠️ Mã lỗi {res['code']} mỗi hãng một nghĩa. Bác chọn đúng đời máy ở BƯỚC 1 "
+                   "rồi bấm lại. Tham khảo nhanh:")
+        seen = set()
+        for r in res["code_rows"]:
+            key = (r["brand"], r["line"], r["meaning"])
+            if key in seen:
+                continue
+            seen.add(key)
+            st.markdown(f"""<div class="code-card"><b>{esc(r['brand'])}</b> <small>({esc(r['line'])})</small>: """
+                        f"""{esc(r['meaning'])}</div>""", unsafe_allow_html=True)
+
+    elif res["status"] == "code_unknown":
+        st.warning(f"⚠️ Mã lỗi {res['code']} chưa có trong bảng tra của đời máy này. "
+                   "Bác nhắn Zalo kèm mã lỗi và đời máy, em trả lời ngay.")
+        st.link_button("💬 GỬI MÃ LỖI QUA ZALO", ZALO_LINK, width="stretch")
+
+    elif res["status"] == "need_info":
+        st.warning("⚠️ " + ASK_MORE)
+        st.link_button("💬 GỬI VIDEO QUA ZALO", ZALO_LINK, width="stretch")
+
+    else:
+        st.warning("⚠️ Bệnh lạ quá. Chat với Zalo Hỗ Trợ Kỹ Thuật nhé!")
+        st.link_button("🏠 VÀO GIAN HÀNG", VIP_LINKS["home"], width="stretch")
+
+
+st.markdown("""<style>.stApp {background-color:#f8f9fa;} .header-container {background: linear-gradient(135deg, #0d47a1 0%, #1976d2 100%); padding:20px; border-radius:0 0 20px 20px; color:white; text-align:center; margin-top:-50px;} .error-card {background-color:white; padding:15px; border-radius:10px; border-left:5px solid #0d47a1; margin-bottom:10px;box-shadow:0 2px 5px rgba(0,0,0,0.05);} .error-card.hard {border-left-color:#d32f2f;} .error-card .steps {font-size:14px; line-height:1.55; margin-top:6px;} .code-card {background:#fff8e1; padding:10px 14px; border-radius:8px; margin-bottom:8px; font-size:14px;} .stButton button {width:100%; border-radius:8px; font-weight:bold;} .st-key-fb_box {margin-top:4px;} .st-key-fb_box .stButton button {width:auto; font-weight:normal; font-size:13px; min-height:0; padding:2px 12px;} .fb-q {font-size:13px; color:#555;} #MainMenu {visibility:hidden;} footer {visibility:hidden;} header {visibility:hidden;}</style>""", unsafe_allow_html=True)
 st.markdown("""<div class="header-container"><h2>🤖 BÁC SĨ ROBOT</h2><p>TRỰC THUỘC THƯƠNG MẠI VÀ CÔNG NGHỆ MIT</p></div>""", unsafe_allow_html=True)
 
 kb, kb_source = get_kb()
@@ -120,54 +223,21 @@ with st.form(key="search_form"):
                           label_visibility="collapsed")
     submitted = st.form_submit_button("🔍 BẮT BỆNH NGAY", type="primary", width="stretch")
 
+# Ket qua giu trong session_state: bam nut "Dung benh chua?" lam app chay lai,
+# neu chi ve ket qua khi vua bam BAT BENH thi ket qua se bien mat.
 if submitted:
     if not query.strip():
+        st.session_state.pop("last", None)
         st.warning("⚠️ Bác chưa nhập lỗi kìa!")
     else:
         res = diagnose(query, user_model, kb)
-        st.write("---")
+        result_text, action = log_fields(res, model_kw)
+        row = log_to_sheet(user_model, query, result_text, action)
+        n = st.session_state.get("last", {}).get("n", 0) + 1
+        st.session_state["last"] = {"res": res, "model_kw": model_kw, "row": row, "n": n, "fb": None}
 
-        if res["status"] == "found":
-            for r in res["code_rows"]:
-                st.markdown(
-                    f"""<div class="code-card"><b>Mã lỗi {esc(r['code'])} ({esc(r['brand'])}):</b> """
-                    f"""{esc(r['meaning'])}<br><b>Xử lý nhanh:</b> {esc(r['action'])}</div>""",
-                    unsafe_allow_html=True)
-            actions = [show_issue(it, i, model_kw) for i, it in enumerate(res["issues"])]
-            if not res["issues"]:
-                st.link_button("💬 HỎI KỸ THUẬT QUA ZALO", ZALO_LINK, width="stretch")
-                actions = ["Zalo Support"]
-            names = [f"Mã {r['brand']} {r['code']}" for r in res["code_rows"]] + [it["name"] for it in res["issues"]]
-            log_to_sheet(user_model, query, ", ".join(names), " | ".join(actions))
-
-        elif res["status"] == "code_multi":
-            st.warning(f"⚠️ Mã lỗi {res['code']} mỗi hãng một nghĩa. Bác chọn đúng đời máy ở BƯỚC 1 "
-                       "rồi bấm lại. Tham khảo nhanh:")
-            seen = set()
-            for r in res["code_rows"]:
-                key = (r["brand"], r["line"], r["meaning"])
-                if key in seen:
-                    continue
-                seen.add(key)
-                st.markdown(f"""<div class="code-card"><b>{esc(r['brand'])}</b> <small>({esc(r['line'])})</small>: """
-                            f"""{esc(r['meaning'])}</div>""", unsafe_allow_html=True)
-            log_to_sheet(user_model, query, f"Mã {res['code']} chưa rõ hãng", "Need Model")
-
-        elif res["status"] == "code_unknown":
-            st.warning(f"⚠️ Mã lỗi {res['code']} chưa có trong bảng tra của đời máy này. "
-                       "Bác nhắn Zalo kèm mã lỗi và đời máy, em trả lời ngay.")
-            st.link_button("💬 GỬI MÃ LỖI QUA ZALO", ZALO_LINK, width="stretch")
-            log_to_sheet(user_model, query, f"Mã lỗi {res['code']}", "Code Unknown")
-
-        elif res["status"] == "need_info":
-            st.warning("⚠️ " + ASK_MORE)
-            st.link_button("💬 GỬI VIDEO QUA ZALO", ZALO_LINK, width="stretch")
-            log_to_sheet(user_model, query, "", "Need Info")
-
-        else:
-            st.warning("⚠️ Bệnh lạ quá. Chat với Zalo Hỗ Trợ Kỹ Thuật nhé!")
-            st.link_button("🏠 VÀO GIAN HÀNG", VIP_LINKS["home"], width="stretch")
-            log_to_sheet(user_model, query, "", "Not Found")
+if st.session_state.get("last"):
+    show_result(st.session_state["last"])
 
 st.divider()
 c1, c2 = st.columns(2)

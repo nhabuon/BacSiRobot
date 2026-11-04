@@ -1,6 +1,9 @@
 # -*- coding: utf-8 -*-
 """Bo test bat benh V2. Chay: python test_bacsi.py  (phai PASS het truoc khi day len GitHub)"""
 from bacsi_core import builtin_kb, build_kb, diagnose, normalize, shop_link, COL_B, COL_M
+from bacsi_core import FB_WRONG, log_row_number
+import datetime
+import bao_cao_tuan as bct
 
 KB = builtin_kb()
 U = "Chưa rõ"
@@ -65,6 +68,51 @@ def first(res):
     return res["status"]
 
 
+def weekly_checks():
+    """Nut "Dung benh chua?" + bao cao tuan. Ky vong suy ra tu chinh du lieu (L10)."""
+    now = datetime.datetime(2026, 11, 9, 8, 23)
+    serial = lambda d: (d - datetime.datetime(1899, 12, 30)).total_seconds() / 86400
+    d1 = serial(datetime.datetime(2026, 11, 5, 10, 0))
+    log = [
+        ["Time", "Model", "Error", "Action", "Result", "Feedback"],         # dong tieu de -> bo
+        [d1, "Chưa rõ", "nước lau sàn nhiều bọt", "Not Found", ""],         # dong cu chi co 5 cot
+        [d1 + 1, "Dreame D9", "Nuoc lau san nhieu bot", "Not Found", ""],   # cung cau, khong dau -> gop
+        [d1, "Chưa rõ", "đèn nháy đỏ", "Need Info", "", ""],
+        [d1, "Roborock S7 / S8", 999.0, "Code Unknown", "Mã lỗi 999", ""],  # sheet luu so 999.0
+        [d1, "Chưa rõ", "kêu to", "Self Fix", "Chổi chính", FB_WRONG],
+        [d1, "Chưa rõ", "khong sac duoc", "Shopee Buy", "Pin", "Đúng"],     # khach bao dung -> bo
+        [d1 - 9, "Chưa rõ", "robot chưa chạy", "Not Found", ""],            # qua 7 ngay -> bo
+        ["2026-11-08 09:00:00", "Chưa rõ", "lớp sơn bị xước", "Not Found", ""],  # thoi gian dang chuoi
+        [],
+    ]
+    g = bct.weekly_rows(log, now, KB)
+    by = {(x["kind"], normalize(x["query"]).strip()): x for x in g}
+    bot = by.get(("Not Found", "nuoc lau san nhieu bot"))
+    table = bct.to_table(g, now)
+    return [
+        ("log: doc so dong tu append_row", log_row_number({"updates": {"updatedRange": "'Trang tính1'!A12:E12"}}) == 12),
+        ("log: append_row la/None khong vo", log_row_number(None) is None and log_row_number({}) is None),
+        ("tuan: serial va chuoi deu doc duoc", bct.parse_ts(d1) == datetime.datetime(2026, 11, 5, 10, 0)
+         and bct.parse_ts("08/11/2026 09:00:00") == datetime.datetime(2026, 11, 8, 9, 0)),
+        ("tuan: tieu de/rac bo qua", bct.parse_ts("Time") is None and bct.parse_ts(True) is None),
+        ("tuan: gop cau co dau/khong dau", bot is not None and bot["count"] == 2
+         and bot["models"] == ["Chưa rõ", "Dreame D9"]),
+        ("tuan: du 4 loai, bo dong 'Dung' va dong cu", sorted(k for k, _ in by) ==
+         sorted(["Not Found", "Not Found", "Need Info", "Code Unknown", "Khách báo sai"])),
+        ("tuan: ma so 999.0 -> '999'", ("Code Unknown", "999") in by),
+        ("tuan: Not Found dung dau, so lan giam dan", g[0] is bot and [x["kind"] for x in g] ==
+         sorted([x["kind"] for x in g], key=list(bct.KINDS).index)),
+        ("tuan: cot 'bay gio app tra' chay lai chan doan", by[("Khách báo sai", "keu to")]["now"].startswith("Đã đổi")
+         and bot["now"] == "Vẫn chưa nhận ra"
+         and by[("Not Found", "lop son bi xuoc")]["now"] == "Vẫn chưa nhận ra"),
+        ("tuan: bao sai ma app van tra y cu -> 'Vẫn như cũ'", bct.describe(diagnose("kêu to", "Chưa rõ", KB), "Khách báo sai",
+         ", ".join(i["name"] for i in diagnose("kêu to", "Chưa rõ", KB)["issues"])) == "Vẫn như cũ (chưa sửa)"),
+        ("tuan: hien ban co dau", bot["query"] == "nước lau sàn nhiều bọt"),
+        ("tuan: bang = tieu de + header + so nhom", len(table) == 2 + len(g) and table[1] == bct.HEADER),
+        ("tuan: tuan trong van co dong bao", len(bct.to_table([], now)) == 3),
+    ]
+
+
 def main():
     ok = 0
     for q, model, want in CASES:
@@ -95,7 +143,7 @@ def main():
         ("link tim kiem ma hoa URL", "keyword=l%E1%BB%91p" in (shop_link(KB["by_id"]["banh_xe"], "t8") or "")),
         ("benh moi truong khong co nut mua", shop_link(KB["by_id"]["bi_ket"], "") is None),
         ("cau rong khong vo", diagnose("", "Chưa rõ", KB)["status"] == "not_found"),
-    ]
+    ] + weekly_checks()
     for name, cond in extra:
         print("%-4s %s" % ("PASS" if cond else "FAIL", name))
         ok += bool(cond)
