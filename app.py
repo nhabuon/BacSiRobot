@@ -166,7 +166,6 @@ def show_feedback(last):
 
 def show_result(last):
     res, model_kw = last["res"], last["model_kw"]
-    st.write("---")
 
     if res["status"] == "found":
         for r in res["code_rows"]:
@@ -206,21 +205,17 @@ def show_result(last):
         st.link_button("🏠 VÀO GIAN HÀNG", VIP_LINKS["home"], width="stretch")
 
 
-st.markdown("""<style>.stApp {background-color:#f8f9fa;} .header-container {background: linear-gradient(135deg, #0d47a1 0%, #1976d2 100%); padding:20px; border-radius:0 0 20px 20px; color:white; text-align:center; margin-top:-50px;} .error-card {background-color:white; padding:15px; border-radius:10px; border-left:5px solid #0d47a1; margin-bottom:10px;box-shadow:0 2px 5px rgba(0,0,0,0.05);} .error-card.hard {border-left-color:#d32f2f;} .error-card .steps {font-size:14px; line-height:1.55; margin-top:6px;} .code-card {background:#fff8e1; padding:10px 14px; border-radius:8px; margin-bottom:8px; font-size:14px;} .stButton button {width:100%; border-radius:8px; font-weight:bold;} .st-key-fb_box {margin-top:4px;} .st-key-fb_box .stButton button {width:auto; font-weight:normal; font-size:13px; min-height:0; padding:2px 12px;} .fb-q {font-size:13px; color:#555;} #MainMenu {visibility:hidden;} footer {visibility:hidden;} header {visibility:hidden;}</style>""", unsafe_allow_html=True)
+st.markdown("""<style>.stApp {background-color:#f8f9fa;} .header-container {background: linear-gradient(135deg, #0d47a1 0%, #1976d2 100%); padding:14px 12px; border-radius:14px; color:white; text-align:center; margin-bottom:8px;} .header-container h2 {color:white; font-size:clamp(24px, 7.5vw, 32px); margin:0; padding:0;} .header-container p {font-size:12px; margin:4px 0 0; opacity:.9;} [data-testid="stMainBlockContainer"] {padding-top:1rem; padding-bottom:2rem;} @media (max-width:640px) {[data-testid="stMainBlockContainer"] {padding-left:.75rem; padding-right:.75rem;}} [data-testid="stWidgetLabel"] p {font-size:15px; font-weight:700; color:#0d47a1;} .stTextInput input, .stSelectbox input, .stSelectbox [data-baseweb="select"] div {font-size:16px !important;} .error-card {background-color:white; padding:15px; border-radius:10px; border-left:5px solid #0d47a1; margin-bottom:10px;box-shadow:0 2px 5px rgba(0,0,0,0.05);} .error-card.hard {border-left-color:#d32f2f;} .error-card .steps {font-size:14px; line-height:1.55; margin-top:6px;} .code-card {background:#fff8e1; padding:10px 14px; border-radius:8px; margin-bottom:8px; font-size:14px;} .stButton button {width:100%; border-radius:8px; font-weight:bold;} .st-key-fb_box {margin-top:4px;} .st-key-fb_box .stButton button {width:auto; font-weight:normal; font-size:14px; min-height:38px; padding:4px 14px;} .fb-q {font-size:13px; color:#555;} #MainMenu {visibility:hidden;} footer {visibility:hidden;} header {visibility:hidden;}</style>""", unsafe_allow_html=True)
 st.markdown("""<div class="header-container"><h2>🤖 BÁC SĨ ROBOT</h2><p>TRỰC THUỘC THƯƠNG MẠI VÀ CÔNG NGHỆ MIT</p></div>""", unsafe_allow_html=True)
 
 kb, kb_source = get_kb()
 
-st.info("💡 **BƯỚC 1:** Chọn đời máy. Mã lỗi mỗi hãng mang nghĩa khác nhau, chọn đúng để bắt bệnh chuẩn.")
-user_model = st.selectbox("Đời máy:", list(MODELS.keys()), label_visibility="collapsed")
+user_model = st.selectbox("BƯỚC 1: Chọn đời máy", list(MODELS.keys()),
+                          help="Mã lỗi mỗi hãng mang nghĩa khác nhau, chọn đúng để bắt bệnh chuẩn.")
 model_kw = MODELS[user_model][2]
 
-st.divider()
-st.write("##### 🔍 BƯỚC 2: Robot bị sao? (Nhập mã lỗi hoặc hiện tượng)")
-
-with st.form(key="search_form"):
-    query = st.text_input("Nhập lỗi", placeholder="VD: không ra nước, kêu to, lỗi 1, 112...",
-                          label_visibility="collapsed")
+with st.form(key="search_form", border=False):
+    query = st.text_input("BƯỚC 2: Robot bị sao?", placeholder="VD: không ra nước, kêu to, lỗi 1, 112...")
     submitted = st.form_submit_button("🔍 BẮT BỆNH NGAY", type="primary", width="stretch")
 
 # Ket qua giu trong session_state: bam nut "Dung benh chua?" lam app chay lai,
@@ -237,14 +232,22 @@ if submitted:
         st.session_state["last"] = {"res": res, "model_kw": model_kw, "row": row, "n": n, "fb": None}
 
 if st.session_state.get("last"):
-    show_result(st.session_state["last"])
+    with st.container(key="ket_qua"):
+        show_result(st.session_state["last"])
+    if submitted:
+        # Dien thoai: ket qua nam duoi man hinh, khach bam xong khong thay gi -> cuon toi ket qua.
+        # So lan tim (n) nam trong noi dung de lan tim sau doan script chay lai.
+        st.html("<script>/* lan %d */ setTimeout(function () {"
+                " var el = document.querySelector('.st-key-ket_qua');"
+                " if (el) el.scrollIntoView({behavior: 'smooth', block: 'start'}); }, 150);</script>"
+                % st.session_state["last"]["n"], unsafe_allow_javascript=True)
 
 st.divider()
 c1, c2 = st.columns(2)
 with c1:
     st.link_button("💬 Zalo Hỗ Trợ Kỹ Thuật", ZALO_LINK, width="stretch")
 with c2:
-    st.link_button("☎️ Hotline", f"tel:{PHONE_NUMBER}", type="secondary", width="stretch")
+    st.link_button(f"☎️ Hotline {PHONE_NUMBER[:4]} {PHONE_NUMBER[4:7]} {PHONE_NUMBER[7:]}", f"tel:{PHONE_NUMBER}", type="secondary", width="stretch")
 st.write("")
 note = "" if kb_source == "sheet" else " · dữ liệu dự phòng"
 st.markdown(f"<div style='text-align: center; color: #888; font-size: 12px;'>© 2026 Thương Mại và Công Nghệ MIT{note}</div>",
