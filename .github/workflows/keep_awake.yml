@@ -18,8 +18,18 @@ jobs:
         run: |
           pip install playwright
           python -m playwright install --with-deps chromium
-      - name: Danh thuc app
+      - name: Danh thuc app + kiem giao dien that su hien
+        # App khong hien du giao dien -> buoc nay FAIL -> GitHub gui email cho nguoi tao lich chay (cron)
         env:
           STREAMLIT_APP_URL: https://bacsirobot.streamlit.app/
+          EXPECT_TEXT: "BÁC SĨ ROBOT"
         run: python keep_awake.py
+      - name: Luu anh chup khi app loi
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: anh-app-loi
+          path: keep_awake_loi.png
+          if-no-files-found: ignore
+          retention-days: 14
 
